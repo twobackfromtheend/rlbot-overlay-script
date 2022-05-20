@@ -169,7 +169,7 @@ class GameState:
     game_cars: "list[PlayerInfo]"
     game_ball: BallInfo
     game_info: GameInfo
-    teams: TeamInfo
+    teams: "list[TeamInfo]"
 
     def to_dict(self):
         return asdict(self, dict_factory=dict_factory)

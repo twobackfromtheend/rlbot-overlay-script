@@ -28,6 +28,12 @@ class SocketRelayEventHandlers:
         self.packet: Optional[FBGameTickPacket] = None
         self.spectated_player: Optional[Spectate] = None
 
+        # Keep team score count to handle overflows
+        self.blue_score = 0
+        self.orange_score = 0
+        self.packet_blue_score = 0
+        self.packet_orange_score = 0
+
     def handle_spectate(self, spectate: PlayerSpectate, seconds: float, frame_num: int):
         player_index = spectate.PlayerIndex()
         if player_index == -1:
@@ -60,15 +66,18 @@ class SocketRelayEventHandlers:
         raise NotImplementedError
 
     def handle_packet(self, packet: FBGameTickPacket):
-        players = []
-        for i in range(packet.PlayersLength()):
-            p = packet.Players(i)
-            players.append({"name": p.Name().decode("utf-8")})
-        # logger.debug(f"Handling packet with players {players}")
-        # asyncio.get_event_loop().create_task(
-        #     self.socketio_server.emit("packet", {"data": players})
-        # )
-        # game_state = GameState.create_from_gametickpacket(packet)
+        for i in range(packet.TeamsLength()):
+            team = packet.Teams(i)
+            team_index = team.TeamIndex()  # This is probably just == i
+            score = team.Score()
+            if team_index == 0:
+                if score != self.packet_blue_score:
+                    self.packet_blue_score = score
+                    self.blue_score += 1
+            elif team_index == 0:
+                if score != self.packet_orange_score:
+                    self.packet_orange_score = score
+                    self.orange_score += 1
         self.packet = packet
 
     def hook_handlers(self, socket_relay: SocketRelayAsyncio):
@@ -88,11 +97,13 @@ class SocketRelayEventHandlers:
     def generate_messages(self) -> List[Message]:
         messages: List[Message] = []
         if self.packet is not None:
-            messages.append(
-                Message(
-                    event="packet", data=GameState.from_packet(self.packet).to_dict()
-                )
-            )
+            game_state = GameState.from_packet(self.packet)
+            for i in range(len(game_state.teams)):
+                if i == 0:
+                    game_state.teams[i].score = self.blue_score
+                elif i == 1:
+                    game_state.teams[i].score = self.orange_score
+            messages.append(Message(event="packet", data=game_state.to_dict()))
         if self.spectated_player is not None:
             # Send spectate message and set to None to avoid sending again
             messages.append(
