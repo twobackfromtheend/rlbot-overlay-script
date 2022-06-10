@@ -74,12 +74,12 @@ class SocketRelayEventHandlers:
                 if score != self.packet_blue_score:
                     self.packet_blue_score = score
                     self.blue_score += 1
-                    self.blue_score = min(self.packet_blue_score, self.blue_score)
+                    self.blue_score = max(self.packet_blue_score, self.blue_score)
             elif team_index == 1:
                 if score != self.packet_orange_score:
                     self.packet_orange_score = score
                     self.orange_score += 1
-                    self.orange_score = min(self.packet_orange_score, self.orange_score)
+                    self.orange_score = max(self.packet_orange_score, self.orange_score)
         self.packet = packet
 
     def hook_handlers(self, socket_relay: SocketRelayAsyncio):
